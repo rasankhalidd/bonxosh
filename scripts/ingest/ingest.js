@@ -214,12 +214,22 @@ async function main() {
 
     // 1. discover
     const targets = new Map();                        // url → { rank, year }
+    const perBrand = [];
     for (const brand of readBrands(args.brands)) {
       try {
-        const { urls, years = {} } = await brandUrls(brand, args, state);
-        urls.forEach((u) => targets.has(u) || targets.set(u, { year: years[u] }));
-        console.log(`  ${brand}: ${urls.length} perfumes${urls.length ? "" : "  ← check the Parfumo brand spelling"}`);
+        const listing = await brandUrls(brand, args, state);
+        perBrand.push(listing);
+        console.log(`  ${brand}: ${listing.urls.length} perfumes${listing.urls.length ? "" : "  ← check the Parfumo brand spelling"}`);
       } catch (e) { console.error(`  ${brand}: ${e.message}`); }
+    }
+    // Listings are sorted most-rated first, so take turns across brands:
+    // every brand's bestsellers get scraped before anyone's long tail.
+    const longest = Math.max(0, ...perBrand.map((l) => l.urls.length));
+    for (let i = 0; i < longest; i++) {
+      for (const { urls, years = {} } of perBrand) {
+        const u = urls[i];
+        if (u && !targets.has(u)) targets.set(u, { year: years[u] });
+      }
     }
     if (args.rankings) {
       const ranked = await rankingUrls(api, args.rankings);
