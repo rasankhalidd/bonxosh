@@ -126,16 +126,16 @@
           <div className="topnav-inner">
             <button className="brand-btn" onClick={()=>go("home")} aria-label="Bonxosh home"><Logo size={25}/></button>
             <nav className="nav-links">
-              {NAV.map(n=>(
+              {NAV.filter(n=>n.key!=="sell").map(n=>(
                 <button key={n.key} className={"nav-link"+(tab===n.key?" active":"")} onClick={()=>go(n.key)}>
                   <Icon name={tab===n.key?n.solid:n.icon}/><span>{tx(n.txk, n.label)}</span>
                 </button>
               ))}
             </nav>
-            <div className="nav-search" onClick={()=>go("search")}>
+            <button className="nav-search" onClick={()=>go("search")} aria-label={tx("shell.searchbar","Search Bonxosh")}>
               <Icon name="search"/>
-              <input readOnly placeholder={tx("shell.searchbar","Search Bonxosh")}/>
-            </div>
+              <span className="ns-ph">{tx("shell.searchbar","Search Bonxosh")}</span>
+            </button>
             <div className="nav-right">
               <label className="city-select" title={tx("sell.cityLabel","City")}>
                 <Icon name="pin"/>
@@ -196,6 +196,16 @@
           <SellerProfile seller={BX.sellers[route.id]} isMe={false} listings={listings}
             onOpenFrag={openFrag} onBuy={onBuy} onSell={onSell} onBack={()=>go("home")}/>
         )}
+
+        {/* ---------- Bottom tab bar (phones) ---------- */}
+        <nav className="tabbar" aria-label="Main">
+          {[NAV[0], NAV[1], NAV[2], { key:"search", txk:"nav.search", label:"Search", icon:"search", solid:"search" }, NAV[3]].map(n=>(
+            <button key={n.key} className={"tab"+(tab===n.key?" active":"")+(n.key==="sell"?" tab-sell":"")}
+              onClick={()=> n.key==="sell" ? onSell() : go(n.key)}>
+              <Icon name={n.key==="sell" ? "plus" : tab===n.key ? n.solid : n.icon}/><span>{tx(n.txk, n.label)}</span>
+            </button>
+          ))}
+        </nav>
 
         {/* ---------- Buy / trade modal ---------- */}
         {buy && <BuyModal listing={buy.listing} intent={buy.intent}
