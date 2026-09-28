@@ -9,6 +9,10 @@
 
   function Home({ listings, city, onOpenFrag, onBuy, onOpenSeller, onSell, goSearch, goFragrances }) {
     const { tx } = window.useT();
+    const [fragCount, setFragCount] = React.useState(BX.fragrances.length);
+    React.useEffect(() => {
+      if (window.Catalog) window.Catalog.count().then((n) => { if (n) setFragCount(n); });
+    }, []);
     const inCity = (l) => city === "All" || BX.sellers[l.seller].city === city;
     const visible = listings.filter(inCity);
 
@@ -37,7 +41,7 @@
             <span>{tx("home.heroSearch", "Search a fragrance, house or note…")}</span>
           </button>
           <div className="hero-stats">
-            <span><b>{BX.fragrances.length}</b> {tx("home.statFrag", "fragrances")}</span>
+            <span><b>{fragCount.toLocaleString()}</b> {tx("home.statFrag", "fragrances")}</span>
             <span><b>{visible.length}</b> {tx("home.statListings", "live listings")}</span>
             <span><b>{shops.length}</b> {tx("home.statShops", "verified shops")}</span>
           </div>

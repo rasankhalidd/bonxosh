@@ -5,28 +5,10 @@
   const { Icon } = window;
 
   // ---- Logo -----------------------------------------------------------
-  // simplistic lowercase wordmark + a clean perfume-bottle mark
-  function Bottle({ size=26 }) {
-    const w = size * 0.62;
-    return (
-      <svg width={w} height={size} viewBox="0 0 22 30" aria-hidden="true" style={{ display:"block" }}>
-        {/* spray cap */}
-        <rect x="7" y="0.5" width="8" height="4.4" rx="1.3" fill="var(--ink)"/>
-        {/* neck */}
-        <rect x="8.4" y="4.4" width="5.2" height="3.4" fill="var(--ink)" opacity="0.92"/>
-        {/* body */}
-        <rect x="1.5" y="7.5" width="19" height="21.5" rx="5.2" fill="var(--gold)"/>
-        {/* label */}
-        <rect x="5" y="14" width="12" height="10" rx="1.6" fill="rgba(251,250,248,0.92)"/>
-        <rect x="7" y="16.8" width="8" height="1.5" rx="0.7" fill="var(--gold-deep)"/>
-        <rect x="7" y="19.6" width="5" height="1.3" rx="0.6" fill="rgba(143,111,60,0.55)"/>
-      </svg>
-    );
-  }
+  // simplistic lowercase wordmark
   function Logo({ size=26 }) {
     return (
-      <span className="brand-lockup" style={{ display:"flex", alignItems:"center", gap:size*0.36 }}>
-        <Bottle size={size*1.08} />
+      <span className="brand-lockup" style={{ display:"flex", alignItems:"center" }}>
         <span className="wordmark" style={{ fontFamily:"var(--sans)", fontWeight:700,
           letterSpacing:"-0.045em", color:"var(--ink)", lineHeight:1, fontSize:size }}>
           bon<span style={{ color:"var(--gold)" }}>x</span>osh
@@ -35,7 +17,6 @@
     );
   }
   window.Logo = Logo;
-  window.Bottle = Bottle;
 
   // ---- Avatar ---------------------------------------------------------
   function initials(name){

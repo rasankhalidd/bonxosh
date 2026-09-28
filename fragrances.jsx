@@ -151,7 +151,7 @@
           <div className="fhero-info">
             <div className="eyebrow">{frag.house}</div>
             <h1>{frag.name}</h1>
-            <div className="house">{frag.year} · {tx("gender."+frag.gender, frag.gender)} · {frag.price}</div>
+            <div className="house">{[frag.year, tx("gender."+frag.gender, frag.gender), frag.price].filter(Boolean).join(" · ")}</div>
             <p className="blurb">{frag.blurb}</p>
             <div className="meta-row">{frag.accords.map(a=>(<span key={a} className="accord">{tx("accord."+a, a)}</span>))}</div>
             <div className="fhero-meta">

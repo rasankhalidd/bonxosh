@@ -20,25 +20,33 @@
     const [scope, setScope] = React.useState("top");
     const [remote, setRemote] = React.useState([]);
     const [rstate, setRstate] = React.useState("idle"); // idle | loading | done | unavail | error
-    const [avail, setAvail] = React.useState(false);
+    const [catCount, setCatCount] = React.useState(null);
+    const [retry, setRetry] = React.useState(0);
     const s = q.trim().toLowerCase();
     const has = s.length>0;
 
-    React.useEffect(() => { if (window.Fragella) window.Fragella.status().then(setAvail); }, []);
-    React.useEffect(() => { setRemote([]); setRstate("idle"); }, [q]);
+    React.useEffect(() => { if (window.Catalog) window.Catalog.count().then(setCatCount); }, []);
 
-    function runRemote() {
-      if (!window.Fragella || s.length < 3) return;
+    // catalog search as you type (debounced); stale responses are dropped
+    React.useEffect(() => {
+      setRemote([]);
+      if (s.length < 2) { setRstate("idle"); return; }
+      if (!window.Catalog || !window.Catalog.isAvailable()) { setRstate("unavail"); return; }
+      let live = true;
       setRstate("loading");
-      window.Fragella.search(q.trim()).then((res) => {
-        if (res.status === 200) {
-          const localIds = new Set(fragrances.map((f) => f.id));
-          setRemote(res.results.filter((f) => !localIds.has(f.id)));
+      const t = setTimeout(() => {
+        window.Catalog.search(q.trim()).then((res) => {
+          if (!live) return;
+          if (res.status !== 200) { setRstate("error"); return; }
+          // hide catalog rows that duplicate a seed fragrance
+          const key = (f) => (f.name + "|" + f.house).toLowerCase();
+          const local = new Set(fragrances.map(key));
+          setRemote(res.results.filter((f) => !local.has(key(f))));
           setRstate("done");
-        } else if (res.error === "no_key") setRstate("unavail");
-        else setRstate("error");
-      });
-    }
+        });
+      }, 250);
+      return () => { live = false; clearTimeout(t); };
+    }, [s, retry]);
 
     const fragHits = has ? fragrances.filter(f =>
       f.name.toLowerCase().includes(s) || f.house.toLowerCase().includes(s) || f.accords.some(a=>a.includes(s))) : [];
@@ -131,11 +139,11 @@
               </>
             )}
 
-            {(scope==="top"||scope==="fragrances") && s.length>=3 && (
+            {(scope==="top"||scope==="fragrances") && s.length>=2 && (
               <div className="global-cat">
                 {rstate==="done" && remote.length>0 && (
                   <>
-                    <div className="sec-title">{tx("srch.global","From the global catalog")} <span className="global-tag">Fragella · 74k+</span></div>
+                    <div className="sec-title">{tx("srch.global","From the global catalog")} <span className="global-tag">Parfumo{catCount ? " · " + catCount.toLocaleString() : ""}</span></div>
                     <div className="frag-list">{remote.map(f=>(<FragHit key={f.id} f={f}/>))}</div>
                   </>
                 )}
@@ -143,12 +151,14 @@
                   <div className="global-note">{tx("srch.noGlobal","No more results in the global catalog.")}</div>
                 )}
                 {rstate==="loading" && <div className="global-note">{tx("srch.searching","Searching the global catalog…")}</div>}
-                {rstate==="unavail" && <div className="global-note">{tx("srch.unavail","Global search isn't available yet — Fragella API key not set.")}</div>}
-                {rstate==="error" && <div className="global-note">{tx("srch.error","Couldn't reach the global catalog. Try again.")}</div>}
-                {(rstate==="idle" || rstate==="error") && (
-                  <button className="global-btn" onClick={runRemote}>
-                    <Icon name="search"/> {tx("srch.globalCta", `Search the full 74k catalog for "${q.trim()}"`, {q:q.trim()})}
-                  </button>
+                {rstate==="unavail" && <div className="global-note">{tx("srch.unavail","The global catalog isn't connected yet.")}</div>}
+                {rstate==="error" && (
+                  <>
+                    <div className="global-note">{tx("srch.error","Couldn't reach the global catalog. Try again.")}</div>
+                    <button className="global-btn" onClick={()=>setRetry(r=>r+1)}>
+                      <Icon name="search"/> {tx("srch.retry","Try again")}
+                    </button>
+                  </>
                 )}
               </div>
             )}

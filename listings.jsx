@@ -289,10 +289,25 @@
     const [note, setNote] = React.useState("");
     const [seek, setSeek] = React.useState([]);
 
-    const fragMatches = fq.trim()
+    const [catMatches, setCatMatches] = React.useState([]);
+    const localMatches = fq.trim()
       ? BX.fragrances.filter((f) => (f.name + " " + f.house).toLowerCase().includes(fq.toLowerCase())).slice(0, 6)
       : [];
-    const chosen = frag ? (BX.fById[frag] || (window.Fragella && window.Fragella.cacheGet(frag))) : null;
+    // top up with catalog hits (debounced), skipping seed duplicates
+    React.useEffect(() => {
+      setCatMatches([]);
+      const q = fq.trim();
+      if (q.length < 2 || !window.Catalog || !window.Catalog.isAvailable()) return;
+      let live = true;
+      const t = setTimeout(() => {
+        window.Catalog.search(q, 8).then((res) => { if (live) setCatMatches(res.results); });
+      }, 250);
+      return () => { live = false; clearTimeout(t); };
+    }, [fq]);
+    const key = (f) => (f.name + "|" + f.house).toLowerCase();
+    const localKeys = new Set(localMatches.map(key));
+    const fragMatches = [...localMatches, ...catMatches.filter((f) => !localKeys.has(key(f)))].slice(0, 8);
+    const chosen = frag ? (BX.fById[frag] || (window.Catalog && window.Catalog.cacheGet(frag))) : null;
     const needsPrice = mode !== "trade";
     const valid = frag && (!needsPrice || (price && +price > 0)) && pay.length > 0;
 
