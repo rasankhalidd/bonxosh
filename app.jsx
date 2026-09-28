@@ -57,7 +57,12 @@
     const [sellPreset, setSellPreset] = React.useState("");
     const [toasts, setToasts] = React.useState([]);
     const [lang, setLang] = React.useState("en");
+    const [, setPhotos] = React.useState(0);          // bumps once demo fragrances get their photos
     const me = BX.sellers[BX.ME];
+
+    React.useEffect(()=>{
+      if (window.Catalog) window.Catalog.enrichSeed().then(n=>{ if (n) setPhotos(n); });
+    }, []);
 
     const i18n = React.useMemo(()=>({ ...window.makeI18n(lang), setLang }), [lang]);
     const { tx, dir } = i18n;
