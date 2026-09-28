@@ -1,13 +1,9 @@
-# Fragella secret API key — NEVER commit this
-fragella.key
-
-# server-side response cache
+# caches (scripts/ingest/.cache holds fragscrape's SQLite + crawl state)
 .cache/
 
 node_modules/
 
-# Local secrets and tool settings
-fragella.key.txt
+# Local secrets and tool settings (scripts/ingest/.env holds the Supabase service-role key)
 .env
 .env.*
 !.env.example

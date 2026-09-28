@@ -21,11 +21,11 @@
     return { name:"home" };
   }
 
-  // Resolves a fragrance by id: local seed first, then the Fragella
-  // runtime cache, then a one-shot fetch through our proxy.
+  // Resolves a fragrance by id: local seed first, then the catalog
+  // runtime cache, then a one-shot fetch from Supabase.
   function FragRoute({ id, ...props }) {
     const { tx } = window.useT();
-    const resolve = () => BX.fById[id] || (window.Fragella && window.Fragella.cacheGet(id)) || null;
+    const resolve = () => BX.fById[id] || (window.Catalog && window.Catalog.cacheGet(id)) || null;
     const [frag, setFrag] = React.useState(resolve);
     const [loading, setLoading] = React.useState(!frag);
 
@@ -33,9 +33,9 @@
       let live = true;
       const found = resolve();
       if (found) { setFrag(found); setLoading(false); return; }
-      if (!window.Fragella) { setFrag(null); setLoading(false); return; }
+      if (!window.Catalog) { setFrag(null); setLoading(false); return; }
       setLoading(true);
-      window.Fragella.getFragrance(id).then((f) => { if (live) { setFrag(f); setLoading(false); } });
+      window.Catalog.getFragrance(id).then((f) => { if (live) { setFrag(f); setLoading(false); } });
       return () => { live = false; };
     }, [id]);
 

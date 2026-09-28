@@ -1,0 +1,126 @@
+# Brands to crawl, one per line, spelled as on parfumo.com
+# (parfumo.com/Perfumes/<Brand_With_Underscores>). Lines starting with # are ignored.
+# The ingest log flags any brand that returns 0 perfumes — fix its spelling here.
+
+# --- Middle Eastern houses (bestsellers in Iraq) ---
+Lattafa
+Armaf
+Rasasi
+Ajmal
+Afnan
+Al Haramain
+Swiss Arabian
+Arabian Oud
+Maison Alhambra
+Fragrance World
+Paris Corner
+French Avenue
+Khadlaj
+Nabeel
+Asdaaf
+Ard Al Zaafaran
+Zimaya
+Rayhaan
+Amouage
+Abdul Samad Al Qurashi
+Ibraheem Al Qurashi
+Nishane
+Emir
+Orientica
+Lattafa Pride
+
+# --- Designer ---
+Dior
+Chanel
+Tom Ford
+Yves Saint Laurent
+Giorgio Armani
+Versace
+Gucci
+Prada
+Valentino
+Givenchy
+Guerlain
+Hermès
+Jean Paul Gaultier
+Rabanne
+Carolina Herrera
+Dolce & Gabbana
+Burberry
+Montblanc
+Hugo Boss
+Azzaro
+Viktor & Rolf
+Lancôme
+Calvin Klein
+Bvlgari
+Cartier
+Mugler
+Narciso Rodriguez
+Ralph Lauren
+Moschino
+Kenzo
+Issey Miyake
+Davidoff
+Lacoste
+Diesel
+Emporio Armani
+Louis Vuitton
+Loewe
+Chloé
+Marc Jacobs
+Ariana Grande
+
+# --- Niche ---
+Creed
+Maison Francis Kurkdjian
+Parfums de Marly
+Xerjoff
+Initio Parfums Privés
+Kilian
+Byredo
+Le Labo
+Diptyque
+Memo Paris
+Roja Parfums
+Frédéric Malle
+Mancera
+Montale
+Tiziana Terenzi
+Maison Margiela
+Jo Malone
+Penhaligon's
+Clive Christian
+Ormonde Jayne
+Serge Lutens
+Juliette Has a Gun
+Escentric Molecules
+Kayali
+Sospiro
+Bond No. 9
+Acqua di Parma
+Atelier Cologne
+Goldfield & Banks
+Ex Nihilo
+Maison Crivelli
+Marc-Antoine Barrois
+BDK Parfums
+Electimuss
+Orto Parisi
+Nasomatto
+Zoologist
+Vilhelm Parfumerie
+Essential Parfums
+Arquiste
+Floraiku
+Carner Barcelona
+Stéphane Humbert Lucas 777
+Maison Tahité
+Parfums de Nicolaï
+Bois 1920
+Casamorati
+Boadicea the Victorious
+The Merchant of Venice
+Lorenzo Pazzaglia
+Profumum Roma
+Mind Games
