@@ -33,16 +33,30 @@ function list(arr) {
     : [];
 }
 
+// fragscrape sometimes returns the brand with the year and concentration
+// glued on: "Armaf 2015  Eau de Toilette", "Orientica Eau de Parfum".
+const CONC = /\s+(Eau de Parfum|Eau de Toilette|Eau de Cologne|Extrait de Parfum|Parfum|Cologne|Perfume Oil|Attar|Body Mist)\b.*$/i;
+function splitBrand(raw) {
+  let brand = String(raw || "").replace(/\s+/g, " ").trim();
+  const c = brand.match(CONC);
+  const concentration = c ? c[1] : null;
+  if (c) brand = brand.slice(0, c.index).trim();
+  const y = brand.match(/\s+((?:19|20)\d{2})$/);
+  if (y) brand = brand.slice(0, y.index).trim();
+  return { brand, year: y ? +y[1] : null, concentration };
+}
+
 function mapParfumo(p, extra = {}) {
   if (!p || !p.url || !p.name || !p.brand) return null;
   const notes = p.notes || {};
+  const b = splitBrand(p.brand);
   return {
     id: idFromUrl(p.url),
     name: String(p.name).trim(),
-    house: String(p.brand).trim(),
-    year: int(p.year ?? extra.year),
+    house: b.brand,
+    year: int(p.year ?? extra.year ?? b.year),
     gender: ["male", "female", "unisex"].includes(p.gender) ? p.gender : null,
-    concentration: p.concentration || null,
+    concentration: p.concentration || b.concentration,
     description: p.description ? String(p.description).trim().slice(0, 2000) : null,
     perfumer: p.perfumer || null,
     accords: list(p.accords).map((a) => a.toLowerCase()),
@@ -64,4 +78,4 @@ function mapParfumo(p, extra = {}) {
   };
 }
 
-module.exports = { mapParfumo, idFromUrl, slugify };
+module.exports = { mapParfumo, idFromUrl, slugify, splitBrand };

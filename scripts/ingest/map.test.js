@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { mapParfumo, idFromUrl } = require("./map");
+const { mapParfumo, idFromUrl, splitBrand } = require("./map");
 
 test("idFromUrl slugs brand + name from a Parfumo URL", () => {
   assert.strictEqual(idFromUrl("https://www.parfumo.com/Perfumes/Creed/Aventus"), "creed-aventus");
@@ -27,6 +27,15 @@ test("mapParfumo converts a fragscrape Perfume into a DB row", () => {
   assert.strictEqual(row.price_value, 9.2);
   assert.strictEqual(row.rank, 12);
   assert.strictEqual(row.gender, "unisex");
+});
+
+test("splitBrand strips a glued-on year and concentration", () => {
+  assert.deepStrictEqual(splitBrand("Armaf 2015  Eau de Toilette"), { brand: "Armaf", year: 2015, concentration: "Eau de Toilette" });
+  assert.deepStrictEqual(splitBrand("Orientica Eau de Parfum"), { brand: "Orientica", year: null, concentration: "Eau de Parfum" });
+  assert.deepStrictEqual(splitBrand("Nishane 2014  Extrait de Parfum"), { brand: "Nishane", year: 2014, concentration: "Extrait de Parfum" });
+  assert.strictEqual(splitBrand("Parfums de Marly").brand, "Parfums de Marly");
+  assert.strictEqual(splitBrand("Ard Al Zaafaran Eau de Parfum").brand, "Ard Al Zaafaran");
+  assert.strictEqual(splitBrand("Lattafa").brand, "Lattafa");
 });
 
 test("mapParfumo drops out-of-range scores and rejects incomplete input", () => {

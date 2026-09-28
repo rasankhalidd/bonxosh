@@ -23,7 +23,7 @@ const { mapParfumo } = require("./map");
 const PARFUMO = "https://www.parfumo.com";
 const CACHE_DIR = path.join(__dirname, ".cache");
 const STATE_FILE = path.join(CACHE_DIR, "ingest-state.json");
-const BATCH = 50;
+const BATCH = 10;
 
 // ---- args -----------------------------------------------------------
 function parseArgs(argv) {
@@ -207,6 +207,7 @@ async function main() {
     process.exit(code);
   }
   process.on("SIGINT", () => { console.log("\nStopping…"); shutdown(130); });
+  process.on("SIGTERM", () => { console.log("\nStopping…"); shutdown(143); });
 
   try {
     await waitHealthy(base);
