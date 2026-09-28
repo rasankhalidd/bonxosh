@@ -147,9 +147,9 @@ async function brandUrls(brand, args, state) {
     if (Object.keys(years).length === before) break; // empty or repeated page → done
     await sleep(jitter(2000));
   }
-  state.brands[brand] = { at: Date.now(), complete: true, urls: Object.keys(years), years };
-  saveState(state);
-  return state.brands[brand];
+  const result = { at: Date.now(), complete: true, urls: Object.keys(years), years };
+  if (result.urls.length) { state.brands[brand] = result; saveState(state); }  // never cache an empty listing
+  return result;
 }
 
 async function rankingUrls(api, pages) {
