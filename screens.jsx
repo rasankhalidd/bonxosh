@@ -61,7 +61,7 @@
           <div className="fr-thumb"><FragThumb frag={f}/></div>
           <div className="fr-main">
             <div className="fr-name">{f.name}</div>
-            <div className="fr-house">{f.house} · {f.year}</div>
+            <div className="fr-house">{[f.house, f.year].filter(Boolean).join(" · ")}</div>
             <div className="fr-accords">{f.accords.slice(0,3).map(a=>(<span key={a} className="accord">{tx("accord."+a, a)}</span>))}</div>
           </div>
           <div className="fr-market">
