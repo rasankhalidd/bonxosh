@@ -339,7 +339,7 @@
               <div className="lc-thumb"><FragThumb frag={chosen} /></div>
               <div className="lc-fragmeta">
                 <div className="lc-fragname">{chosen.name}</div>
-                <div className="lc-fraghouse">{chosen.house} · {chosen.year}</div>
+                <div className="lc-fraghouse">{[chosen.house, chosen.year].filter(Boolean).join(" · ")}</div>
               </div>
               <button className="ghost-btn" onClick={() => { setFrag(""); setFq(""); }}>{tx("sell.change", "Change")}</button>
             </div>

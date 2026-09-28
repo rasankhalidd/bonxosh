@@ -27,7 +27,7 @@ const BATCH = 50;
 
 // ---- args -----------------------------------------------------------
 function parseArgs(argv) {
-  const a = { brands: null, rankings: 0, limit: Infinity, refreshDays: 30, delay: 1000, dryRun: false, port: 3799, maxPages: 50 };
+  const a = { brands: null, rankings: 0, limit: Infinity, refreshDays: 30, delay: 1000, dryRun: false, port: 3799, maxPages: 200 };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i], v = argv[i + 1];
     if (k === "--brands") { a.brands = v; i++; }
@@ -107,20 +107,49 @@ function makeApi(base) {
 }
 
 // ---- crawl: discover perfume URLs -----------------------------------
-async function brandUrls(api, brand, args, state) {
-  const cached = state.brands[brand];
-  if (cached && Date.now() - cached.at < args.refreshDays * 864e5) return cached.urls;
-  const slug = brand.replace(/\s+/g, "_");
-  const urls = new Set();
-  for (let page = 1; page <= args.maxPages; page++) {
-    const rows = await api(`/api/brand/${encodeURIComponent(slug)}?page=${page}`);
-    const before = urls.size;
-    (rows || []).forEach((r) => r.url && urls.add(r.url));
-    if (urls.size === before) break;                 // empty or repeated page → done
+// Brand listings are plain HTML, so we read them directly: fragscrape's
+// /api/brand sends ?page=, but Parfumo paginates with ?current_page=,
+// which left it stuck on the first 20 perfumes of every brand.
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
+
+async function brandPage(slug, page) {
+  const url = `${PARFUMO}/Perfumes/${encodeURIComponent(slug)}?current_page=${page}&v=grid&o=nr_desc&g_f=1&g_m=1&g_u=1`;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const r = await fetch(url, { headers: { "User-Agent": UA, "Accept-Language": "en" } }).catch(() => null);
+    const html = r ? await r.text().catch(() => "") : "";
+    // Parfumo answers a rate-limit block with a small "Access Denied" page (status 404)
+    const blocked = !r || /<title>Access Denied<\/title>/i.test(html);
+    if (!blocked && r.status === 404) return [];     // brand really doesn't exist
+    if (!blocked && r.ok && html.length > 10000) {   // a real listing page
+      // <div class="name"><a href="…">Name…</a> <span class="release_year"><a …>(2022)</a></span>
+      const re = /<div class="name">\s*<a href="([^"]+)"[\s\S]*?<\/a>\s*(?:<span class="release_year">\s*<a[^>]*>\((\d{4})\))?/g;
+      return [...html.matchAll(re)].map((m) => ({
+        url: m[1].startsWith("http") ? m[1] : PARFUMO + m[1],
+        year: m[2] ? +m[2] : undefined,
+      }));
+    }
+    const wait = 60000 * attempt;
+    console.error(`    ${slug} page ${page}: ${blocked ? "blocked by Parfumo" : "bad response"} (${r ? r.status : "no response"}), retrying in ${wait / 1000}s…`);
+    await sleep(wait);
   }
-  state.brands[brand] = { at: Date.now(), urls: [...urls] };
+  throw new Error(`listing page ${page} kept failing`);
+}
+
+async function brandUrls(brand, args, state) {
+  const cached = state.brands[brand];
+  if (cached && cached.complete && Date.now() - cached.at < args.refreshDays * 864e5) return cached;
+  const slug = brand.replace(/\s+/g, "_");
+  const years = {};                                  // url → release year
+  for (let page = 1; page <= args.maxPages; page++) {
+    const links = await brandPage(slug, page);
+    const before = Object.keys(years).length;
+    links.forEach((l) => { if (!(l.url in years)) years[l.url] = l.year || null; });
+    if (Object.keys(years).length === before) break; // empty or repeated page → done
+    await sleep(jitter(2000));
+  }
+  state.brands[brand] = { at: Date.now(), complete: true, urls: Object.keys(years), years };
   saveState(state);
-  return state.brands[brand].urls;
+  return state.brands[brand];
 }
 
 async function rankingUrls(api, pages) {
@@ -184,17 +213,17 @@ async function main() {
     console.log("fragscrape ready.");
 
     // 1. discover
-    const targets = new Map();                        // url → rank|undefined
+    const targets = new Map();                        // url → { rank, year }
     for (const brand of readBrands(args.brands)) {
       try {
-        const urls = await brandUrls(api, brand, args, state);
-        urls.forEach((u) => targets.has(u) || targets.set(u, undefined));
+        const { urls, years = {} } = await brandUrls(brand, args, state);
+        urls.forEach((u) => targets.has(u) || targets.set(u, { year: years[u] }));
         console.log(`  ${brand}: ${urls.length} perfumes${urls.length ? "" : "  ← check the Parfumo brand spelling"}`);
       } catch (e) { console.error(`  ${brand}: ${e.message}`); }
     }
     if (args.rankings) {
       const ranked = await rankingUrls(api, args.rankings);
-      ranked.forEach((rank, u) => targets.set(u, rank));
+      ranked.forEach((rank, u) => targets.set(u, { ...targets.get(u), rank }));
       console.log(`  rankings: ${ranked.size} perfumes`);
     }
 
@@ -219,7 +248,7 @@ async function main() {
       const url = todo[i];
       try {
         const p = await api("/api/perfume/by-url?cache=true", { body: { url } });
-        const row = mapParfumo(p, { rank: targets.get(url) });
+        const row = mapParfumo(p, targets.get(url));
         if (!row) throw new Error("unmappable response");
         if (args.dryRun && saved + pending.length < 3) console.log(JSON.stringify(row, null, 2));
         pending.push(row);

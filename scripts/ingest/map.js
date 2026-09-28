@@ -40,7 +40,7 @@ function mapParfumo(p, extra = {}) {
     id: idFromUrl(p.url),
     name: String(p.name).trim(),
     house: String(p.brand).trim(),
-    year: int(p.year),
+    year: int(p.year ?? extra.year),
     gender: ["male", "female", "unisex"].includes(p.gender) ? p.gender : null,
     concentration: p.concentration || null,
     description: p.description ? String(p.description).trim().slice(0, 2000) : null,

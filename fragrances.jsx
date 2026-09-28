@@ -37,7 +37,7 @@
         <div className="fr-thumb"><FragThumb frag={frag}/></div>
         <div className="fr-main">
           <div className="fr-name">{frag.name}</div>
-          <div className="fr-house">{frag.house} · {frag.year} · {tx("gender."+frag.gender, frag.gender)}</div>
+          <div className="fr-house">{[frag.house, frag.year, tx("gender."+frag.gender, frag.gender)].filter(Boolean).join(" · ")}</div>
           <div className="fr-accords">
             {frag.accords.slice(0,4).map(a=>(<span key={a} className="accord">{tx("accord."+a, a)}</span>))}
           </div>
