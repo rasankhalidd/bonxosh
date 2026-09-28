@@ -79,6 +79,8 @@
   async function search(q, limit = 20) {
     if (!client) return { results: [], status: 503, error: "no_config" };
     const { data, error } = await client.rpc("search_fragrances", { q, lim: limit });
+    // schema not installed yet (unknown function/table) → treat as not connected
+    if (error && /^(PGRST20[25]|42P01|42883)$/.test(error.code || "")) return { results: [], status: 503, error: "no_schema" };
     if (error) return { results: [], status: 500, error: error.message };
     return { results: (data || []).map(mapRow).filter(Boolean), status: 200 };
   }

@@ -37,6 +37,7 @@
       const t = setTimeout(() => {
         window.Catalog.search(q.trim()).then((res) => {
           if (!live) return;
+          if (res.status === 503) { setRstate("unavail"); return; }
           if (res.status !== 200) { setRstate("error"); return; }
           // hide catalog rows that duplicate a seed fragrance
           const key = (f) => (f.name + "|" + f.house).toLowerCase();
