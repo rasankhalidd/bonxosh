@@ -101,7 +101,29 @@
     return (_count = n);
   }
 
+  // The data.js demo fragrances have no photos; borrow each one's image
+  // from its catalog twin (same name + house, most-rated if several).
+  async function enrichSeed() {
+    const seed = (window.BX && window.BX.fragrances) || [];
+    const need = seed.filter((f) => !f.image);
+    if (!client || !need.length) return 0;
+    const { data, error } = await client.from("fragrances")
+      .select("name, house, image_url, votes")
+      .in("name", [...new Set(need.map((f) => f.name))])
+      .not("image_url", "is", null);
+    if (error || !data) return 0;
+    const key = (name, house) => (name + "|" + house).toLowerCase();
+    const best = {};
+    data.forEach((r) => {
+      const k = key(r.name, r.house);
+      if (!best[k] || (r.votes || 0) > (best[k].votes || 0)) best[k] = r;
+    });
+    let n = 0;
+    need.forEach((f) => { const r = best[key(f.name, f.house)]; if (r) { f.image = r.image_url; n++; } });
+    return n;
+  }
+
   function cacheGet(id) { return cacheById[id] || null; }
 
-  window.Catalog = { status, search, getFragrance, count, cacheGet, mapRow, isAvailable: () => !!client };
+  window.Catalog = { status, search, getFragrance, count, cacheGet, mapRow, enrichSeed, isAvailable: () => !!client };
 })();

@@ -23,7 +23,7 @@ const { mapParfumo } = require("./map");
 const PARFUMO = "https://www.parfumo.com";
 const CACHE_DIR = path.join(__dirname, ".cache");
 const STATE_FILE = path.join(CACHE_DIR, "ingest-state.json");
-const BATCH = 50;
+const BATCH = 10;
 
 // ---- args -----------------------------------------------------------
 function parseArgs(argv) {
@@ -147,9 +147,9 @@ async function brandUrls(brand, args, state) {
     if (Object.keys(years).length === before) break; // empty or repeated page → done
     await sleep(jitter(2000));
   }
-  state.brands[brand] = { at: Date.now(), complete: true, urls: Object.keys(years), years };
-  saveState(state);
-  return state.brands[brand];
+  const result = { at: Date.now(), complete: true, urls: Object.keys(years), years };
+  if (result.urls.length) { state.brands[brand] = result; saveState(state); }  // never cache an empty listing
+  return result;
 }
 
 async function rankingUrls(api, pages) {
@@ -207,6 +207,7 @@ async function main() {
     process.exit(code);
   }
   process.on("SIGINT", () => { console.log("\nStopping…"); shutdown(130); });
+  process.on("SIGTERM", () => { console.log("\nStopping…"); shutdown(143); });
 
   try {
     await waitHealthy(base);
@@ -214,12 +215,22 @@ async function main() {
 
     // 1. discover
     const targets = new Map();                        // url → { rank, year }
+    const perBrand = [];
     for (const brand of readBrands(args.brands)) {
       try {
-        const { urls, years = {} } = await brandUrls(brand, args, state);
-        urls.forEach((u) => targets.has(u) || targets.set(u, { year: years[u] }));
-        console.log(`  ${brand}: ${urls.length} perfumes${urls.length ? "" : "  ← check the Parfumo brand spelling"}`);
+        const listing = await brandUrls(brand, args, state);
+        perBrand.push(listing);
+        console.log(`  ${brand}: ${listing.urls.length} perfumes${listing.urls.length ? "" : "  ← check the Parfumo brand spelling"}`);
       } catch (e) { console.error(`  ${brand}: ${e.message}`); }
+    }
+    // Listings are sorted most-rated first, so take turns across brands:
+    // every brand's bestsellers get scraped before anyone's long tail.
+    const longest = Math.max(0, ...perBrand.map((l) => l.urls.length));
+    for (let i = 0; i < longest; i++) {
+      for (const { urls, years = {} } of perBrand) {
+        const u = urls[i];
+        if (u && !targets.has(u)) targets.set(u, { year: years[u] });
+      }
     }
     if (args.rankings) {
       const ranked = await rankingUrls(api, args.rankings);

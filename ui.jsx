@@ -43,40 +43,20 @@
     return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
   }
 
-  // ---- Fragrance thumbnail (tasteful tinted monogram, not fake bottle) ----
-  const accordTone = {
-    woody:"#3a2c20", oud:"#2c2118", smoky:"#2a241c", tobacco:"#322a1d", leather:"#2e2620",
-    amber:"#5e3f24", sweet:"#6b4a2a", gourmand:"#5a3c22", vanilla:"#6e5230", saffron:"#6b3f24",
-    fresh:"#33433f", citrus:"#3a4a32", aromatic:"#34433a", ambroxan:"#3c463f",
-    floral:"#5a3a48", rose:"#5e3540", fruity:"#5a3a30", spicy:"#5b3a26", creamy:"#5b4a36",
-  };
-  function fragTone(f){
-    for (const a of f.accords){ if (accordTone[a]) return accordTone[a]; }
-    return "#3a2c20";
+  // ---- Fragrance thumbnail: product photo on white, or a monogram ----
+  // Parfumo serves resized images via ?width=; small tiles don't need 720px.
+  function sized(url, w){
+    return /[?&]width=\d+/.test(url) ? url.replace(/([?&]width=)\d+/, "$1" + w) : url;
   }
   function FragThumb({ frag, mono }) {
-    const t = fragTone(frag);
     const [imgErr, setImgErr] = React.useState(false);
     const showImg = frag.image && !imgErr;
     return (
-      <div style={{ width:"100%", height:"100%", position:"relative",
-        background:`linear-gradient(165deg, ${shade(t,28)}, ${t} 62%, ${shade(t,-14)})`,
-        display:"grid", placeItems:"center" }}>
+      <div className="fthumb">
         {showImg ? (
-          <img src={frag.image} alt={frag.name} loading="lazy" onError={()=>setImgErr(true)}
-            style={{ width:"100%", height:"100%", objectFit:"contain", padding:"6%" }}/>
+          <img src={sized(frag.image, mono ? 720 : 240)} alt={frag.name} loading="lazy" onError={()=>setImgErr(true)}/>
         ) : (
-          <>
-            <span style={{ fontFamily:"var(--serif)", fontWeight:600, color:"rgba(245,242,236,.92)",
-              fontSize: mono? 30:"min(46%,30px)", lineHeight:1, letterSpacing:".5px",
-              textShadow:"0 1px 8px rgba(0,0,0,.25)" }}>
-              {frag.name[0]}
-            </span>
-            <span style={{ position:"absolute", left:0, right:0, bottom:0, height:"34%",
-              background:"linear-gradient(transparent, rgba(0,0,0,.28))" }}/>
-            <span style={{ position:"absolute", top:"16%", left:"50%", transform:"translateX(-50%)",
-              width:"34%", height:"5%", borderRadius:2, background:"rgba(245,242,236,.18)" }}/>
-          </>
+          <span className="fthumb-mono">{frag.name[0]}</span>
         )}
       </div>
     );
