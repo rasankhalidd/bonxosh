@@ -30,7 +30,26 @@ and Parfumo never sees your visitors' traffic.
 5. **Install:** `cd scripts/ingest && npm install` (needs Node 18+; this
    also downloads the Chrome that fragscrape uses).
 
-## Running
+## Running automatically (GitHub Actions)
+
+`.github/workflows/ingest.yml` runs the importer every 6 hours on
+GitHub's servers, so the catalog keeps filling even when nobody's computer
+is on. Each run works for up to ~5h20m (`--max-minutes 320`), then stops
+cleanly. The next run continues where it stopped: brand lists are cached
+between runs, and perfumes already saved are skipped.
+
+One-time setup: in the repo, go to Settings → Secrets and variables →
+Actions and add:
+
+| Secret | Value |
+|---|---|
+| `SUPABASE_URL` | `https://<project>.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | the project's **service_role** key |
+
+To start a run right away, open the Actions tab → "Import fragrances" →
+Run workflow. Progress is in that run's "Import" step log.
+
+## Running by hand
 
 ```bash
 # try it: scrape 3 Lattafa perfumes, print them, write nothing
@@ -53,6 +72,7 @@ npm run ingest -- --rankings 5
 | `--limit <n>` | no limit | Max perfumes to scrape this run |
 | `--refresh-days <n>` | 30 | Re-scrape perfumes older than this; skip fresher ones |
 | `--delay <ms>` | 1000 | Extra polite delay between perfumes, on top of fragscrape's own 1.5–3 s |
+| `--max-minutes <n>` | no limit | Stop cleanly after this long (saves progress, exits 0) |
 | `--dry-run` | off | Print instead of writing to Supabase |
 
 - **Resumable:** stop anytime with Ctrl-C. Anything already scraped is
