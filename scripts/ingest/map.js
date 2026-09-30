@@ -35,7 +35,8 @@ function list(arr) {
 
 // fragscrape sometimes returns the brand with the year and concentration
 // glued on: "Armaf 2015  Eau de Toilette", "Orientica Eau de Parfum".
-const CONC = /\s+(Eau de Parfum|Eau de Toilette|Eau de Cologne|Extrait de Parfum|Parfum|Cologne|Perfume Oil|Attar|Body Mist)\b.*$/i;
+// ("Perfume" only matches as a whole word, so brands like "Afnan Perfumes" stay intact.)
+const CONC = /\s+(Eau de Parfum|Eau de Toilette|Eau de Cologne|Extrait de Parfum|Concentrated Oil Perfume|Concentrated Perfume Oil|Concentrated Perfume|Concentrated|Hair Perfume|Hair Mist|All Over Spray|Body Spray|Body Mist|Perfume Oil|Perfume|Parfum|Cologne|Attar)\b.*$/i;
 function splitBrand(raw) {
   let brand = String(raw || "").replace(/\s+/g, " ").trim();
   const c = brand.match(CONC);

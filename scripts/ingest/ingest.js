@@ -136,21 +136,26 @@ async function brandPage(slug, page) {
   throw new Error(`listing page ${page} kept failing`);
 }
 
-async function brandUrls(brand, args, state) {
-  const cached = state.brands[brand];
-  if (cached && cached.complete && Date.now() - cached.at < args.refreshDays * 864e5) return cached;
-  const slug = brand.replace(/\s+/g, "_");
-  const years = {};                                  // url → release year
-  for (let page = 1; page <= args.maxPages; page++) {
-    const links = await brandPage(slug, page);
-    const before = Object.keys(years).length;
-    links.forEach((l) => { if (!(l.url in years)) years[l.url] = l.year || null; });
-    if (Object.keys(years).length === before) break; // empty or repeated page → done
-    await sleep(jitter(2000));
-  }
-  const result = { at: Date.now(), complete: true, urls: Object.keys(years), years };
-  if (result.urls.length) { state.brands[brand] = result; saveState(state); }  // never cache an empty listing
-  return result;
+// Per-brand listing state, kept in .cache between runs:
+//   { at, urls: [...most-rated first], years: {url: year}, pages, complete }
+function listingOf(state, brand, args) {
+  let l = state.brands[brand];
+  if (l && l.complete && Date.now() - l.at > args.refreshDays * 864e5) l = null;   // stale → re-read
+  if (!l) l = state.brands[brand] = { at: Date.now(), urls: [], years: {}, pages: 0, complete: false };
+  l.years = l.years || {};
+  l.pages = l.pages || 0;
+  return l;
+}
+
+// Reads the next page of one brand's list; returns how many new perfumes it found.
+async function readNextPage(brand, l, args) {
+  const links = await brandPage(brand.replace(/\s+/g, "_"), l.pages + 1);
+  const before = l.urls.length;
+  for (const x of links) if (!(x.url in l.years)) { l.years[x.url] = x.year || null; l.urls.push(x.url); }
+  l.pages++;
+  l.at = Date.now();
+  if (l.urls.length === before || l.pages >= args.maxPages) l.complete = true;     // empty/repeated page → end
+  return l.urls.length - before;
 }
 
 async function rankingUrls(api, pages) {
@@ -217,69 +222,92 @@ async function main() {
     await waitHealthy(base);
     console.log("fragscrape ready.");
 
-    // 1. discover
-    const targets = new Map();                        // url → { rank, year }
-    const perBrand = [];
-    for (const brand of readBrands(args.brands)) {
-      if (timeUp()) { console.log("Time budget reached while reading brand lists — the next run continues."); break; }
-      try {
-        const listing = await brandUrls(brand, args, state);
-        perBrand.push(listing);
-        console.log(`  ${brand}: ${listing.urls.length} perfumes${listing.urls.length ? "" : "  ← check the Parfumo brand spelling"}`);
-      } catch (e) { console.error(`  ${brand}: ${e.message}`); }
-    }
-    // Listings are sorted most-rated first, so take turns across brands:
-    // every brand's bestsellers get scraped before anyone's long tail.
-    const longest = Math.max(0, ...perBrand.map((l) => l.urls.length));
-    for (let i = 0; i < longest; i++) {
-      for (const { urls, years = {} } of perBrand) {
-        const u = urls[i];
-        if (u && !targets.has(u)) targets.set(u, { year: years[u] });
-      }
-    }
-    if (args.rankings) {
-      const ranked = await rankingUrls(api, args.rankings);
-      ranked.forEach((rank, u) => targets.set(u, { ...targets.get(u), rank }));
-      console.log(`  rankings: ${ranked.size} perfumes`);
-    }
+    // Work in rounds. Round 1 reads page 1 of every brand (its 20 most-rated
+    // perfumes) and scrapes those; round 2 reads page 2 of every brand; and
+    // so on. So every brand's bestsellers land within the first hour of a
+    // run, instead of after hours of reading full brand lists.
+    const brands = readBrands(args.brands);
+    const tried = new Set();                          // urls handled this run
+    let depth = 1, scraped = 0, streak = 0;
+    const cutoff = Date.now() - args.refreshDays * 864e5;
 
-    // 2. skip fresh rows already in Supabase
-    let todo = [...targets.keys()];
-    if (db && todo.length) {
-      const cutoff = Date.now() - args.refreshDays * 864e5;
-      const fresh = new Set();
-      for (let i = 0; i < todo.length; i += 150) {
-        const { data, error } = await db.from("fragrances").select("source_url, scraped_at").in("source_url", todo.slice(i, i + 150));
-        if (error) throw new Error("Supabase read failed: " + error.message);
-        (data || []).forEach((r) => { if (new Date(r.scraped_at).getTime() > cutoff) fresh.add(r.source_url); });
+    while (!timeUp() && !stopping && scraped < args.limit) {
+      // a. make sure every brand's list is read down to `depth` pages
+      let grew = 0;
+      for (const brand of brands) {
+        if (timeUp()) break;
+        const l = listingOf(state, brand, args);
+        if (l.complete || l.pages >= depth) continue;
+        try {
+          const n = await readNextPage(brand, l, args);
+          grew += n;
+          if (l.pages === 1 && !n) console.log(`  ${brand}: 0 perfumes  ← check the Parfumo brand spelling`);
+          saveState(state);
+          await sleep(jitter(2000));
+        } catch (e) { console.error(`  ${brand}: ${e.message}`); }
       }
-      todo = todo.filter((u) => !fresh.has(u));
-      console.log(`${targets.size} found, ${fresh.size} already fresh, ${todo.length} to scrape.`);
-    }
-    todo = todo.slice(0, args.limit);
 
-    // 3. scrape details + upsert
-    let streak = 0;
-    for (let i = 0; i < todo.length && !stopping; i++) {
-      if (timeUp()) { console.log("Time budget reached — the next run continues."); break; }
-      const url = todo[i];
-      try {
-        const p = await api("/api/perfume/by-url?cache=true", { body: { url } });
-        const row = mapParfumo(p, targets.get(url));
-        if (!row) throw new Error("unmappable response");
-        if (args.dryRun && saved + pending.length < 3) console.log(JSON.stringify(row, null, 2));
-        pending.push(row);
-        streak = 0;
-        console.log(`[${i + 1}/${todo.length}] ${row.house} — ${row.name}`);
-      } catch (e) {
-        failed++; streak++;
-        console.error(`[${i + 1}/${todo.length}] ${url}: ${e.message}`);
-        if (streak >= 10) throw new Error("10 failures in a row — Parfumo is probably blocking us. Try later or set DECODO_PROXY_URL.");
-        if (streak >= 3) { console.error("backing off 60s…"); await sleep(60000); }
+      // b. queue everything known but not handled yet, taking turns across
+      //    brands (lists are most-rated first) so bestsellers come first
+      const lists = brands.map((b) => state.brands[b]).filter(Boolean);
+      const targets = new Map();                      // url → { year, rank }
+      const longest = Math.max(0, ...lists.map((l) => l.urls.length));
+      for (let i = 0; i < longest; i++) {
+        for (const l of lists) {
+          const u = l.urls[i];
+          if (u && !tried.has(u) && !targets.has(u)) targets.set(u, { year: l.years[u] });
+        }
       }
-      if (pending.length >= BATCH) await flush();
-      await sleep(jitter(args.delay));
+      if (args.rankings && depth === 1) {
+        const ranked = await rankingUrls(api, args.rankings);
+        ranked.forEach((rank, u) => { if (!tried.has(u)) targets.set(u, { ...targets.get(u), rank }); });
+        console.log(`  rankings: ${ranked.size} perfumes`);
+      }
+
+      // c. skip perfumes already saved recently
+      let todo = [...targets.keys()];
+      todo.forEach((u) => tried.add(u));
+      if (db && todo.length) {
+        const fresh = new Set();
+        for (let i = 0; i < todo.length; i += 150) {
+          const { data, error } = await db.from("fragrances").select("source_url, scraped_at").in("source_url", todo.slice(i, i + 150));
+          if (error) throw new Error("Supabase read failed: " + error.message);
+          (data || []).forEach((r) => { if (new Date(r.scraped_at).getTime() > cutoff) fresh.add(r.source_url); });
+        }
+        todo = todo.filter((u) => !fresh.has(u));
+        console.log(`Round ${depth}: ${targets.size} perfumes listed so far this run, ${fresh.size} already saved, ${todo.length} to scrape.`);
+      }
+      todo = todo.slice(0, args.limit - scraped);
+
+      // d. scrape details + upsert
+      for (let i = 0; i < todo.length && !stopping; i++) {
+        if (timeUp()) break;
+        const url = todo[i];
+        try {
+          const p = await api("/api/perfume/by-url?cache=true", { body: { url } });
+          const row = mapParfumo(p, targets.get(url));
+          if (!row) throw new Error("unmappable response");
+          if (args.dryRun && saved + pending.length < 3) console.log(JSON.stringify(row, null, 2));
+          pending.push(row);
+          streak = 0;
+          scraped++;
+          console.log(`[round ${depth} · ${i + 1}/${todo.length}] ${row.house} — ${row.name}`);
+        } catch (e) {
+          failed++; streak++;
+          console.error(`[round ${depth} · ${i + 1}/${todo.length}] ${url}: ${e.message}`);
+          if (streak >= 10) throw new Error("10 failures in a row — Parfumo is probably blocking us. Try later or set DECODO_PROXY_URL.");
+          if (streak >= 3) { console.error("backing off 60s…"); await sleep(60000); }
+        }
+        if (pending.length >= BATCH) await flush();
+        await sleep(jitter(args.delay));
+      }
+
+      // e. finished when every list is fully read and nothing is left to scrape
+      const allRead = brands.every((b) => { const l = state.brands[b]; return l && l.complete; });
+      if (allRead && !todo.length && !grew) { console.log("Every brand list is fully imported."); break; }
+      depth++;
     }
+    if (timeUp()) console.log("Time budget reached — the next run continues.");
     await shutdown(0);
   } catch (e) {
     console.error(e.message);

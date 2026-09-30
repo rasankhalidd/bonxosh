@@ -36,6 +36,12 @@ test("splitBrand strips a glued-on year and concentration", () => {
   assert.strictEqual(splitBrand("Parfums de Marly").brand, "Parfums de Marly");
   assert.strictEqual(splitBrand("Ard Al Zaafaran Eau de Parfum").brand, "Ard Al Zaafaran");
   assert.strictEqual(splitBrand("Lattafa").brand, "Lattafa");
+  assert.deepStrictEqual(splitBrand("Nabeel 2025 Concentrated Oil Perfume"), { brand: "Nabeel", year: 2025, concentration: "Concentrated Oil Perfume" });
+  assert.deepStrictEqual(splitBrand("Nishane 2021 Hair Perfume"), { brand: "Nishane", year: 2021, concentration: "Hair Perfume" });
+  assert.strictEqual(splitBrand("Al Haramain Perfume").brand, "Al Haramain");
+  assert.strictEqual(splitBrand("Asdaaf All Over Spray").brand, "Asdaaf");
+  assert.strictEqual(splitBrand("Afnan Perfumes").brand, "Afnan Perfumes");
+  assert.strictEqual(splitBrand("Al Haramain Perfumes").brand, "Al Haramain Perfumes");
 });
 
 test("mapParfumo drops out-of-range scores and rejects incomplete input", () => {
