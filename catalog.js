@@ -19,18 +19,14 @@
   function genderMap(g) {
     return g === "male" ? "Masc" : g === "female" ? "Fem" : "Unisex";
   }
+  // unknown stays null so the page can hide it rather than show a guess
   function meter(v) {
     const n = parseFloat(v);
-    return isNaN(n) ? 55 : Math.round(Math.max(0, Math.min(10, n)) * 10);
+    return isNaN(n) ? null : Math.round(Math.max(0, Math.min(10, n)) * 10);
   }
-  function distFrom(r) {
-    // synthesize a plausible [5,4,3,2,1] %% spread from a 0–5 rating
-    const five = Math.max(8, Math.min(80, Math.round((r - 2.5) * 32)));
-    const four = Math.round((100 - five) * 0.5);
-    const three = Math.round((100 - five - four) * 0.55);
-    const two = Math.round((100 - five - four - three) * 0.6);
-    const one = Math.max(0, 100 - five - four - three - two);
-    return [five, four, three, two, one];
+  function stars(v) {
+    const n = parseFloat(v);
+    return isNaN(n) ? null : Math.round((n / 2) * 10) / 10;
   }
   function buildBlurb(row, accords) {
     if (row.description) return row.description;
@@ -42,7 +38,6 @@
   function mapRow(row) {
     if (!row || !row.id) return null;
     const accords = (row.accords || []).map((a) => String(a).toLowerCase());
-    const rating = row.rating != null ? Math.round((row.rating / 2) * 10) / 10 : 4.0;
     const f = {
       id: row.id,
       name: row.name,
@@ -51,9 +46,8 @@
       gender: genderMap(row.gender),
       accords: accords.length ? accords : ["woody"],
       price: null,                  // Parfumo has no retail price
-      rating,
+      rating: stars(row.rating),
       votes: row.votes || 0,
-      dist: distFrom(rating),
       longevity: meter(row.longevity),
       sillage: meter(row.sillage),
       value: meter(row.price_value),
@@ -65,6 +59,7 @@
       },
       image: row.image_url || null,
       perfumer: row.perfumer || null,
+      sourceUrl: row.source_url || null,
       remote: true,
     };
     cacheById[f.id] = f;
@@ -101,16 +96,16 @@
     return (_count = n);
   }
 
-  // The data.js demo fragrances have no photos; borrow each one's image
-  // from its catalog twin (same name + house, most-rated if several).
+  // The data.js demo fragrances carry hand-written numbers and no photos.
+  // Once each one's catalog twin (same name + house, most-rated if several)
+  // has been imported, replace those with the twin's real Parfumo data.
   async function enrichSeed() {
     const seed = (window.BX && window.BX.fragrances) || [];
-    const need = seed.filter((f) => !f.image);
+    const need = seed.filter((f) => !f.enriched);
     if (!client || !need.length) return 0;
     const { data, error } = await client.from("fragrances")
-      .select("name, house, image_url, votes")
-      .in("name", [...new Set(need.map((f) => f.name))])
-      .not("image_url", "is", null);
+      .select("*")
+      .in("name", [...new Set(need.map((f) => f.name))]);
     if (error || !data) return 0;
     const key = (name, house) => (name + "|" + house).toLowerCase();
     const best = {};
@@ -119,7 +114,28 @@
       if (!best[k] || (r.votes || 0) > (best[k].votes || 0)) best[k] = r;
     });
     let n = 0;
-    need.forEach((f) => { const r = best[key(f.name, f.house)]; if (r) { f.image = r.image_url; n++; } });
+    need.forEach((f) => {
+      const r = best[key(f.name, f.house)];
+      if (!r) return;
+      const accords = (r.accords || []).map((a) => String(a).toLowerCase());
+      Object.assign(f, {
+        image: r.image_url || f.image || null,
+        rating: stars(r.rating),
+        votes: r.votes || 0,
+        longevity: meter(r.longevity),
+        sillage: meter(r.sillage),
+        value: meter(r.price_value),
+        year: r.year || f.year,
+        gender: r.gender ? genderMap(r.gender) : f.gender,
+        perfumer: r.perfumer || null,
+        sourceUrl: r.source_url || null,
+        enriched: true,
+      });
+      if (accords.length) f.accords = accords;
+      if ((r.notes_top || []).length + (r.notes_heart || []).length + (r.notes_base || []).length)
+        f.notes = { top: r.notes_top || [], heart: r.notes_heart || [], base: r.notes_base || [] };
+      n++;
+    });
     return n;
   }
 

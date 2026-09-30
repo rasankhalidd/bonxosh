@@ -1,0 +1,29 @@
+# GitHub Pages serves the committed dist/ bundle as-is. This check fails if
+# someone changes the source (.jsx/.js/styles.css) without running
+# `npm run build` and committing the result, so a stale bundle can't reach
+# the live site unnoticed.
+name: Build check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Committed bundle is up to date
+        run: |
+          if [ -n "$(git status --porcelain -- dist index.html Bonxosh.html)" ]; then
+            git status --short -- dist index.html Bonxosh.html
+            echo "::error::dist/ is out of date. Run 'npm run build' and commit the result."
+            exit 1
+          fi

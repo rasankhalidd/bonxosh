@@ -1,0 +1,16 @@
+{
+  "name": "bonxosh",
+  "private": true,
+  "description": "Bonxosh — Iraq's fragrance marketplace (static site)",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "start": "node serve.js"
+  },
+  "devDependencies": {
+    "@supabase/postgrest-js": "^2.117.2",
+    "esbuild": "^0.25.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

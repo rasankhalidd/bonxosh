@@ -2,7 +2,7 @@
    BONXOSH — Fragrances catalog (search engine) + Fragrance PAGE
    ============================================================ */
 (function () {
-  const { Icon, Avatar, Stars, RateStars, FragThumb, fmt } = window;
+  const { Icon, Stars, FragThumb, fmt } = window;
   const BX = window.BX;
   const fmtIQD = (n) => window.fmtIQD(n);
   const cityLabel = (tx, c) => window.cityLabel(tx, c);
@@ -51,7 +51,7 @@
           ) : (
             <div className="fr-nolistings">{tx("fr.noListings","No listings")}</div>
           )}
-          <div className="fr-score-mini"><Icon name="starSolid" style={{width:12,height:12,color:"var(--gold)"}}/>{frag.rating.toFixed(1)}</div>
+          {frag.rating!=null && <div className="fr-score-mini"><Icon name="starSolid" style={{width:12,height:12,color:"var(--gold)"}}/>{frag.rating.toFixed(1)}</div>}
         </div>
       </button>
     );
@@ -73,7 +73,7 @@
     list = [...list].sort((a,b)=>{
       if (sort==="listings") return mkt[b.id].count - mkt[a.id].count;
       if (sort==="priceLow") return (mkt[a.id].low ?? 1e12) - (mkt[b.id].low ?? 1e12);
-      if (sort==="rating") return b.rating - a.rating;
+      if (sort==="rating") return (b.rating ?? -1) - (a.rating ?? -1);
       if (sort==="popular") return b.votes - a.votes;
       return 0;
     });
@@ -124,21 +124,15 @@
   /* ============================================================
      FULL FRAGRANCE PAGE  (canonical — listings + info)
      ============================================================ */
-  function FragPage({ frag, fragrances, listings, city, ratings, onRate, onBack, onOpen,
+  function FragPage({ frag, fragrances, listings, city, onBack, onOpen,
                       onBuy, onOpenSeller, onSell }) {
     const { tx } = window.useT();
     React.useEffect(()=>{ window.scrollTo(0,0); }, [frag.id]);
-    const my = ratings[frag.id];
-    const eff = my ? ((frag.rating*frag.votes + my) / (frag.votes+1)) : frag.rating;
-    const votes = my ? frag.votes+1 : frag.votes;
-    const dist = frag.dist;
-    const reviewers = [BX.sellers.dara, BX.sellers.oudhouse, BX.sellers.lana];
-    const reviewScore = [5,4,5];
-    const reviewText = [
-      "Batch variation is real but my bottle performs beautifully — 8+ hours and an arm's-length cloud. A genuine signature-scent contender.",
-      "We stock this constantly; it's our most-asked-for bottle. Authentic batches only, and the drydown is unmatched.",
-      "Cozy without being cloying. My most-complimented cold-weather pick — strangers ask what it is.",
-    ];
+    const hasRating = frag.rating!=null && frag.votes>0;
+    const meters = [["Longevity", frag.longevity, ["Weak","Moderate","Long","Eternal"]],
+                    ["Sillage", frag.sillage, ["Intimate","Moderate","Strong","Nuclear"]],
+                    ["Value", frag.value, ["Steep","Fair","Good","Steal"]]].filter(([,v])=>v!=null);
+    const pyramid = [["Top",frag.notes.top],["Heart",frag.notes.heart],["Base",frag.notes.base]].filter(([,arr])=>arr && arr.length);
     const related = fragrances.filter(f => f.id!==frag.id &&
       f.accords.some(a=>frag.accords.includes(a))).slice(0,3);
 
@@ -155,7 +149,8 @@
             <p className="blurb">{frag.blurb}</p>
             <div className="meta-row">{frag.accords.map(a=>(<span key={a} className="accord">{tx("accord."+a, a)}</span>))}</div>
             <div className="fhero-meta">
-              <span><Icon name="starSolid" style={{width:14,height:14,color:"var(--gold)"}}/> {eff.toFixed(1)} ({tx("fp.ratings", `${fmt(votes)} ratings`, {n:fmt(votes)})})</span>
+              {hasRating && <span><Icon name="starSolid" style={{width:14,height:14,color:"var(--gold)"}}/> {frag.rating.toFixed(1)} ({tx("fp.ratings", `${fmt(frag.votes)} ratings`, {n:fmt(frag.votes)})})</span>}
+              {frag.perfumer && <span>{tx("fp.perfumer","Perfumer")}: {frag.perfumer}</span>}
             </div>
           </div>
         </div>
@@ -164,74 +159,48 @@
         <window.ListingsSection frag={frag} listings={listings} city={city}
           onBuy={onBuy} onOpenSeller={onOpenSeller} onSell={()=>onSell(frag.id)} />
 
-        <div className="fsection">
-          <h3>{tx("fp.community","Community rating")}</h3>
-          <div className="score-block">
-            <div className="score-big">
-              <div className="n">{eff.toFixed(1)}</div>
-              <Stars value={eff} size={18}/>
-              <div className="v">{tx("fp.ratings", `${fmt(votes)} ratings`, {n:fmt(votes)})}</div>
+        {hasRating && (
+          <div className="fsection">
+            <h3>{tx("fp.community","Community rating")}</h3>
+            <div className="score-block">
+              <div className="score-big">
+                <div className="n">{frag.rating.toFixed(1)}</div>
+                <Stars value={frag.rating} size={18}/>
+                <div className="v">{tx("fp.ratingsOn", `${fmt(frag.votes)} ratings on Parfumo`, {n:fmt(frag.votes)})}</div>
+              </div>
             </div>
-            <div className="dist">
-              {[5,4,3,2,1].map((s,i)=>(
-                <div key={s} className="dist-row">
-                  <span className="k">{s}★</span>
-                  <span className="bar"><i style={{width:dist[i]+"%"}}/></span>
-                  <span style={{width:34, textAlign:"right"}}>{dist[i]}%</span>
+          </div>
+        )}
+
+        {meters.length>0 && (
+          <div className="fsection">
+            <h3>{tx("fp.performance","Performance")}</h3>
+            <div className="meters">
+              {meters.map(([label, v, notes])=>(<Meter key={label} label={label} v={v} note={meterNote(v, notes)}/>))}
+            </div>
+          </div>
+        )}
+
+        {pyramid.length>0 && (
+          <div className="fsection">
+            <h3>{tx("fp.pyramid","Note pyramid")}</h3>
+            <div className="pyramid">
+              {pyramid.map(([lvl,arr])=>(
+                <div key={lvl} className="pyr-row">
+                  <span className="lvl">{tx("pyr."+lvl, lvl)}</span>
+                  <div className="pyr-notes">{arr.map(n=>(<span key={n} className="note-tag">{n}</span>))}</div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="fsection">
-          <h3>{tx("fp.performance","Performance")}</h3>
-          <div className="meters">
-            <Meter label="Longevity" v={frag.longevity} note={meterNote(frag.longevity, ["Weak","Moderate","Long","Eternal"])}/>
-            <Meter label="Sillage" v={frag.sillage} note={meterNote(frag.sillage, ["Intimate","Moderate","Strong","Nuclear"])}/>
-            <Meter label="Value" v={frag.value} note={meterNote(frag.value, ["Steep","Fair","Good","Steal"])}/>
-          </div>
-        </div>
-
-        <div className="rate-card">
-          <h3>{tx("fp.yourRating","Your rating")}</h3>
-          <div className="rate-row">
-            <RateStars value={my||0} onRate={(n)=>onRate(frag.id, n)} size={34}/>
-            {my
-              ? <span className="you-rated">{tx("fp.youRated", `You rated this ${my} / 5 — thanks for contributing.`, {n:my})}</span>
-              : <span style={{color:"var(--ink-soft)", fontSize:14.5}}>{tx("fp.tapRate", `Tap a star to rate ${frag.name}.`, {frag:frag.name})}</span>}
-          </div>
-        </div>
-
-        <div className="fsection">
-          <h3>{tx("fp.pyramid","Note pyramid")}</h3>
-          <div className="pyramid">
-            {[["Top",frag.notes.top],["Heart",frag.notes.heart],["Base",frag.notes.base]].map(([lvl,arr])=>(
-              <div key={lvl} className="pyr-row">
-                <span className="lvl">{tx("pyr."+lvl, lvl)}</span>
-                <div className="pyr-notes">{arr.map(n=>(<span key={n} className="note-tag">{n}</span>))}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="fsection">
-          <h3>{tx("fp.reviews","Community reviews")}</h3>
-          {reviewers.map((u,i)=>(
-            <div key={u.id} className="review">
-              <Avatar user={u} size={40}/>
-              <div className="rv-body">
-                <div className="rv-head">
-                  <span className="name">{u.name}</span>
-                  {u.verified && <Icon name="verify" style={{width:14,height:14,color:"var(--gold)"}}/>}
-                  <span className="handle">@{u.handle}</span>
-                  <span style={{marginLeft:"auto"}}><Stars value={reviewScore[i]} size={13}/></span>
-                </div>
-                <p className="rv-text">{reviewText[i]}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        {frag.sourceUrl && (
+          <p className="source-note">
+            {tx("fp.source","Fragrance data from Parfumo.")}{" "}
+            <a href={frag.sourceUrl} target="_blank" rel="noopener noreferrer">{tx("fp.viewParfumo","View on Parfumo")}</a>
+          </p>
+        )}
 
         {related.length>0 && (
           <div className="fsection">
@@ -243,7 +212,7 @@
                   <div className="rc-body">
                     <div className="rc-name">{f.name}</div>
                     <div className="rc-house">{f.house}</div>
-                    <div className="rc-rate"><Icon name="starSolid"/>{f.rating.toFixed(1)}</div>
+                    {f.rating!=null && <div className="rc-rate"><Icon name="starSolid"/>{f.rating.toFixed(1)}</div>}
                   </div>
                 </button>
               ))}

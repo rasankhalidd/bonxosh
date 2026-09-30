@@ -1,5 +1,5 @@
 /* Bonxosh dev server — plain static files.
-   Run: node serve.js  →  http://localhost:5173/Bonxosh.html
+   Run: npm run build && node serve.js  →  http://localhost:5173/
 
    The fragrance catalog is read straight from Supabase by the
    browser (see catalog.js + config.js), so no API proxy is needed. */
