@@ -51,7 +51,6 @@
   function App() {
     const [route, setRoute] = React.useState(parseHash);
     const [listings, setListings] = React.useState(() => BX.listings.map(l=>({...l})));
-    const [ratings, setRatings] = React.useState({});
     const [city, setCity] = React.useState("All");
     const [buy, setBuy] = React.useState(null);       // { listing, intent }
     const [sellPreset, setSellPreset] = React.useState("");
@@ -117,10 +116,6 @@
       go("fragrance", listing.frag);
     }
 
-    function onRate(fragId, n){
-      setRatings(r=>({...r,[fragId]:n}));
-      toast(tx("toast.rated", `Rated ${BX.fById[fragId].name} ${n}★`, {frag:BX.fById[fragId].name, n}));
-    }
 
     const tab = route.name==="fragrance" ? "fragrances"
               : route.name==="seller" ? "" : route.name;
@@ -181,7 +176,7 @@
 
         {route.name==="fragrance" && (
           <FragRoute id={route.id} fragrances={BX.fragrances} listings={listings} city={city}
-            ratings={ratings} onRate={onRate} onBack={()=>go("fragrances")} onOpen={openFrag}
+            onBack={()=>go("fragrances")} onOpen={openFrag}
             onBuy={onBuy} onOpenSeller={openSeller} onSell={onSell}/>
         )}
 

@@ -152,7 +152,6 @@
     "toast.saved":      "پاشەکەوتکرا لە کۆکراوەکەت",
     "toast.unsaved":    "لابرا لە پاشەکەوتکراوەکان",
     "toast.posted":     "بڵاوکراوەکەت زیندووە",
-    "toast.rated":      "{name}ت بە {n}★ هەڵسەنگاند",
     "toast.followed":   "شوێنکەوتنی @{handle}",
     "toast.unfollowed": "شوێنکەوتن لابرا @{handle}",
 
@@ -202,7 +201,6 @@
     "toast.orderCod":   "داواکاری تۆمارکرا (پارەدان لە کاتی گەیاندن) — {seller} پشتڕاستی دەکاتەوە و بۆت دەنێرێت.",
     "toast.reserved":   "حیجزکرا بە {pay} — فرۆشیار ئاگادارکرایەوە.",
     "toast.listed":     "لیستەکەت بڵاوکرایەوە.",
-    "toast.rated":      "{frag} هەڵسەنگێنرا بە {n}★",
 
     // ---- home / browse ----
     "home.allCities":   "سلێمانی، هەولێر و بەغدا",
@@ -313,11 +311,11 @@
     "fp.community":     "هەڵسەنگاندنی کۆمەڵگا",
     "fp.ratings":       "{n} هەڵسەنگاندن",
     "fp.performance":   "کارایی",
-    "fp.yourRating":    "هەڵسەنگاندنی تۆ",
-    "fp.youRated":      "تۆ ئەمەت هەڵسەنگاند بە {n} / ٥ — سوپاس بۆ بەشداریت.",
-    "fp.tapRate":       "ئەستێرەیەک لێبدە بۆ هەڵسەنگاندنی {frag}.",
     "fp.pyramid":       "هەرەمی تێبینییەکان",
-    "fp.reviews":       "پێداچوونەوەکانی کۆمەڵگا",
+    "fp.perfumer":      "بۆنساز",
+    "fp.ratingsOn":     "{n} هەڵسەنگاندن لە Parfumo",
+    "fp.source":        "زانیاری بۆنەکە لە Parfumo ـەوەیە.",
+    "fp.viewParfumo":   "بینین لە Parfumo",
     "fp.alsoLike":      "لەوانەیە ئەمانەشت بەدڵ بێت",
 
     // ---- search ----
