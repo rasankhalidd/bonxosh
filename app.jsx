@@ -61,7 +61,9 @@
     const me = BX.sellers[BX.ME];
 
     React.useEffect(()=>{
-      if (window.Catalog) window.Catalog.enrichSeed().then(n=>{ if (n) setPhotos(n); });
+      // typeof check: a browser can briefly mix this file with an older cached catalog.js
+      if (window.Catalog && typeof window.Catalog.enrichSeed === "function")
+        window.Catalog.enrichSeed().then(n=>{ if (n) setPhotos(n); }).catch(()=>{});
     }, []);
 
     const i18n = React.useMemo(()=>({ ...window.makeI18n(lang), setLang }), [lang]);
@@ -231,5 +233,27 @@
     );
   }
 
-  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  // Last line of defence: an uncaught render/effect error would otherwise
+  // unmount everything and leave a blank page. Sits outside the i18n
+  // provider, so the message is shown in both languages.
+  class ErrorBoundary extends React.Component {
+    constructor(props){ super(props); this.state = { failed:false }; }
+    static getDerivedStateFromError(){ return { failed:true }; }
+    componentDidCatch(err){ console.error("Bonxosh crashed:", err); }
+    render(){
+      if (!this.state.failed) return this.props.children;
+      return (
+        <div className="page"><div className="empty-search">
+          <Icon name="bottle" className="glyph"/>
+          <div>Something went wrong. · <span lang="ckb" dir="rtl">هەڵەیەک ڕوویدا.</span></div>
+          <button onClick={()=>location.reload()} style={{ margin:"16px auto 0", display:"block", padding:"11px 20px",
+            borderRadius:999, background:"var(--ink)", color:"var(--cream)", fontWeight:600 }}>
+            Reload · <span lang="ckb">دووبارە بارکردنەوە</span>
+          </button>
+        </div></div>
+      );
+    }
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<ErrorBoundary><App/></ErrorBoundary>);
 })();

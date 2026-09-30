@@ -27,7 +27,7 @@ const BATCH = 10;
 
 // ---- args -----------------------------------------------------------
 function parseArgs(argv) {
-  const a = { brands: null, rankings: 0, limit: Infinity, refreshDays: 30, delay: 1000, dryRun: false, port: 3799, maxPages: 200 };
+  const a = { brands: null, rankings: 0, limit: Infinity, refreshDays: 30, delay: 1000, dryRun: false, port: 3799, maxPages: 200, maxMinutes: Infinity };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i], v = argv[i + 1];
     if (k === "--brands") { a.brands = v; i++; }
@@ -37,6 +37,7 @@ function parseArgs(argv) {
     else if (k === "--delay") { a.delay = +v; i++; }
     else if (k === "--port") { a.port = +v; i++; }
     else if (k === "--max-pages") { a.maxPages = +v; i++; }
+    else if (k === "--max-minutes") { a.maxMinutes = +v; i++; }
     else if (k === "--dry-run") a.dryRun = true;
     else if (k === "--help" || k === "-h") { console.log(fs.readFileSync(__filename, "utf8").split("*/")[0]); process.exit(0); }
     else { console.error(`Unknown argument: ${k}`); process.exit(1); }
@@ -186,6 +187,9 @@ async function main() {
   const api = makeApi(base);
   const child = startFragscrape(args.port);
   const state = loadState();
+  // --max-minutes: stop cleanly (flush + exit 0) before a CI job's time limit
+  const deadline = Date.now() + args.maxMinutes * 60000;
+  const timeUp = () => Date.now() >= deadline;
   let pending = [];
   let saved = 0, failed = 0, stopping = false;
 
@@ -217,6 +221,7 @@ async function main() {
     const targets = new Map();                        // url → { rank, year }
     const perBrand = [];
     for (const brand of readBrands(args.brands)) {
+      if (timeUp()) { console.log("Time budget reached while reading brand lists — the next run continues."); break; }
       try {
         const listing = await brandUrls(brand, args, state);
         perBrand.push(listing);
@@ -256,6 +261,7 @@ async function main() {
     // 3. scrape details + upsert
     let streak = 0;
     for (let i = 0; i < todo.length && !stopping; i++) {
+      if (timeUp()) { console.log("Time budget reached — the next run continues."); break; }
       const url = todo[i];
       try {
         const p = await api("/api/perfume/by-url?cache=true", { body: { url } });

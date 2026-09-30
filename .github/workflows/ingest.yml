@@ -1,0 +1,66 @@
+# Fills the Supabase fragrance catalog from Parfumo (see scripts/ingest).
+# Runs every 6 hours; each run works for up to ~5h20m, then stops cleanly
+# and the next run picks up where it left off (brand lists are cached,
+# perfumes already saved are skipped).
+#
+# Needs two repository secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL               https://<project>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY  the project's service_role key
+name: Import fragrances
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "How long to run (minutes)"
+        default: "320"
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    defaults:
+      run:
+        working-directory: scripts/ingest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/ingest/package-lock.json
+
+      # the runner already has Chrome; skip Puppeteer's own download
+      - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+
+      - run: npm test
+
+      - name: Restore crawl state
+        uses: actions/cache/restore@v4
+        with:
+          path: scripts/ingest/.cache
+          key: ingest-${{ github.run_id }}
+          restore-keys: ingest-
+
+      - name: Import
+        run: node ingest.js --brands brands-popular.txt --delay 3000 --max-minutes "${{ github.event.inputs.minutes || '320' }}"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BROWSER_EXECUTABLE_PATH: /usr/bin/google-chrome
+
+      - name: Save crawl state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: scripts/ingest/.cache
+          key: ingest-${{ github.run_id }}
