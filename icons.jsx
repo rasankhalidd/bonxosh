@@ -50,14 +50,24 @@
     shield:      <><path d="M12 3 5 5.5V11c0 4.5 3 7.7 7 9 4-1.3 7-4.5 7-9V5.5Z"/><path d="m9 11.5 2 2 4-4"/></>,
     swap:        <><path d="M7 4 4 7l3 3"/><path d="M4 7h12a3 3 0 0 1 3 3"/><path d="m17 20 3-3-3-3"/><path d="M20 17H8a3 3 0 0 1-3-3"/></>,
     sliders:     <><path d="M4 7h9M18 7h2M4 17h2M11 17h9"/><circle cx="15.5" cy="7" r="2"/><circle cx="8.5" cy="17" r="2"/></>,
+    arrowRight:  <><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></>,
+    arrowUpRight:<><path d="M7 17 17 7"/><path d="M8 7h9v9"/></>,
+    clock:       <><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></>,
+    box:         <><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5Z"/><path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></>,
+    message:     <><path d="M4 5.5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 3.5v-3.5H4a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1Z"/></>,
+    seal:        <><path d="M12 2.5l2.1 1.5 2.6-.2 1 2.4 2.2 1.4-.6 2.5.6 2.5-2.2 1.4-1 2.4-2.6-.2L12 21.5l-2.1-1.5-2.6.2-1-2.4-2.2-1.4.6-2.5-.6-2.5 2.2-1.4 1-2.4 2.6.2Z" fill="currentColor" stroke="none"/><path d="m8.8 12 2.2 2.2 4.2-4.4" stroke="var(--paper)" strokeWidth="2"/></>,
+    globe:       <><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.4 2.4 3.5 5.2 3.5 8.5s-1.1 6.1-3.5 8.5c-2.4-2.4-3.5-5.2-3.5-8.5S9.6 5.9 12 3.5Z"/></>,
     coins:       <><ellipse cx="9" cy="6.5" rx="5.5" ry="2.7"/><path d="M3.5 6.5v4.3c0 1.5 2.5 2.7 5.5 2.7"/><path d="M9 13.3v3.2c0 1.5 2.5 2.7 5.5 2.7s5.5-1.2 5.5-2.7v-4.3"/><ellipse cx="14.5" cy="12.2" rx="5.5" ry="2.7"/></>,
   };
 
-  function Icon({ name, className, style, size }) {
+  // Decorative by default; pass `title` to make the icon announce itself.
+  function Icon({ name, className, style, size, title }) {
     const d = paths[name] || null;
+    const a11y = title ? { role:"img", "aria-label":title } : { "aria-hidden":"true" };
     return (
       <svg className={"ico " + (className||"")} style={style} viewBox="0 0 24 24"
-           width={size} height={size} {...P} aria-hidden="true">
+           width={size} height={size} {...P} {...a11y}>
+        {title && <title>{title}</title>}
         {d}
       </svg>
     );
