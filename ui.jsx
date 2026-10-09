@@ -5,14 +5,11 @@
   const { Icon } = window;
 
   // ---- Logo -----------------------------------------------------------
-  // simplistic lowercase wordmark
+  // lowercase wordmark; the gold x is the brand mark
   function Logo({ size=26 }) {
     return (
-      <span className="brand-lockup" style={{ display:"flex", alignItems:"center" }}>
-        <span className="wordmark" style={{ fontFamily:"var(--sans)", fontWeight:700,
-          letterSpacing:"-0.045em", color:"var(--ink)", lineHeight:1, fontSize:size }}>
-          bon<span style={{ color:"var(--gold)" }}>x</span>osh
-        </span>
+      <span className="wordmark" style={{ fontSize:size }}>
+        bon<span className="wordmark-x">x</span>osh
       </span>
     );
   }
@@ -23,59 +20,120 @@
     const p = name.trim().split(/\s+/);
     return ((p[0]?.[0]||"") + (p[1]?.[0]||"")).toUpperCase();
   }
-  function Avatar({ user, size=44 }) {
-    const cls = size>=48 ? "s48" : size>=44 ? "s44" : "s38";
-    const t = user.tone || "#8c857a";
+  function Avatar({ user, size=44, className="" }) {
     return (
-      <div className={"av "+cls}
-        style={{ width:size, height:size, fontSize:size*0.36,
-          background:`linear-gradient(150deg, ${t}, ${shade(t,-18)})` }}>
+      <span className={"avatar " + className} aria-hidden="true"
+        style={{ width:size, height:size, fontSize:size*0.36, "--tone": user.tone || "#8c857a" }}>
         {initials(user.name)}
-      </div>
+      </span>
     );
   }
   window.Avatar = Avatar;
 
-  function shade(hex, amt){
-    const n = parseInt(hex.slice(1),16);
-    let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
-    r=Math.max(0,Math.min(255,r+amt)); g=Math.max(0,Math.min(255,g+amt)); b=Math.max(0,Math.min(255,b+amt));
-    return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
-  }
-
-  // ---- Fragrance thumbnail: product photo on white, or a monogram ----
+  // ---- Fragrance image: product photo, or a typeset label -------------
   // Parfumo serves resized images via ?width=; small tiles don't need 720px.
   function sized(url, w){
     return /[?&]width=\d+/.test(url) ? url.replace(/([?&]width=)\d+/, "$1" + w) : url;
   }
-  function FragThumb({ frag, mono }) {
+  function FragThumb({ frag, large, mono }) {
     const [imgErr, setImgErr] = React.useState(false);
-    const showImg = frag.image && !imgErr;
+    const big = large || mono;
+    if (frag.image && !imgErr) {
+      return (
+        <span className="fthumb">
+          <img src={sized(frag.image, big ? 720 : 360)} alt={frag.name} loading="lazy"
+            onError={()=>setImgErr(true)}/>
+        </span>
+      );
+    }
+    // no photo: an apothecary-style label instead of a broken image
     return (
-      <div className="fthumb">
-        {showImg ? (
-          <img src={sized(frag.image, mono ? 720 : 240)} alt={frag.name} loading="lazy" onError={()=>setImgErr(true)}/>
-        ) : (
-          <span className="fthumb-mono">{frag.name[0]}</span>
-        )}
-      </div>
+      <span className={"fthumb fthumb-label" + (big ? " is-large" : "")} role="img" aria-label={frag.name}>
+        <span className="fl-initial" aria-hidden="true">{frag.name[0]}</span>
+        <span className="fl-house" aria-hidden="true">{frag.house}</span>
+      </span>
     );
   }
   window.FragThumb = FragThumb;
 
-  // ---- Placeholder (image stand-in) ----------------------------------
-  function Placeholder({ cap, glyph="image", dark=false }) {
+  // ---- Verified seal --------------------------------------------------
+  function Verified({ label }) {
+    const { tx } = window.useT();
+    const t = label || tx("badge.verified", "Verified");
+    return <Icon name="seal" className="verified" title={t}/>;
+  }
+  window.Verified = Verified;
+
+  // ---- Price: tabular figures, currency set small ----------------------
+  function Price({ iqd, size }) {
     return (
-      <div className="ph" style={ dark ? {
-        backgroundColor:"#2a2622",
-        backgroundImage:"repeating-linear-gradient(45deg, rgba(245,242,236,.05) 0 12px, transparent 12px 24px)"
-      } : undefined }>
-        <Icon name={glyph} className="glyph" />
-        <span className="cap" style={ dark? {color:"rgba(245,242,236,.55)"}:undefined }>{cap}</span>
+      <span className={"price" + (size ? " price-" + size : "")}>
+        <span className="price-n">{iqd.toLocaleString("en-US")}</span>
+        <span className="price-c">IQD</span>
+      </span>
+    );
+  }
+  window.Price = Price;
+
+  // ---- Section head ---------------------------------------------------
+  function SectionHead({ eyebrow, title, sub, action, onAction, id }) {
+    return (
+      <div className="sec-head">
+        <div className="sec-head-text">
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
+          <h2 id={id}>{title}</h2>
+          {sub && <p className="sec-sub">{sub}</p>}
+        </div>
+        {action && (
+          <button className="text-link" onClick={onAction}>
+            {action}<Icon name="arrowRight" className="flip-rtl"/>
+          </button>
+        )}
       </div>
     );
   }
-  window.Placeholder = Placeholder;
+  window.SectionHead = SectionHead;
+
+  // ---- Empty state ----------------------------------------------------
+  function Empty({ icon="bottle", title, text, children }) {
+    return (
+      <div className="empty">
+        <span className="empty-mark"><Icon name={icon}/></span>
+        {title && <p className="empty-title">{title}</p>}
+        {text && <p className="empty-text">{text}</p>}
+        {children}
+      </div>
+    );
+  }
+  window.Empty = Empty;
+
+  // ---- Segmented control (single choice) -------------------------------
+  function Segmented({ options, value, onChange, label, size }) {
+    return (
+      <div className={"seg" + (size ? " seg-" + size : "")} role="radiogroup" aria-label={label}>
+        {options.map(([k, l]) => (
+          <button key={k} type="button" role="radio" aria-checked={value === k}
+            className={value === k ? "is-on" : ""} onClick={() => onChange(k)}>{l}</button>
+        ))}
+      </div>
+    );
+  }
+  window.Segmented = Segmented;
+
+  // ---- Native select, styled ------------------------------------------
+  function Select({ value, onChange, options, label, icon, className="" }) {
+    return (
+      <label className={"select " + className}>
+        <span className="sr-only">{label}</span>
+        {icon && <Icon name={icon} className="select-icon"/>}
+        <select value={value} onChange={(e) => onChange(e.target.value)}>
+          {options.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+        <Icon name="chevDown" className="select-caret"/>
+      </label>
+    );
+  }
+  window.Select = Select;
 
   // ---- Stars (display) -----------------------------------------------
   function Stars({ value, size=14, className="" }) {
@@ -86,27 +144,20 @@
     for (let i=0;i<5;i++){
       if (i < fullN) items.push(<Icon key={i} name="starSolid" className="st" style={{width:size,height:size}}/>);
       else if (i===fullN && half) items.push(<Icon key={i} name="starHalf" className="st" style={{width:size,height:size}}/>);
-      else items.push(<Icon key={i} name="starSolid" className="st empty" style={{width:size,height:size}}/>);
+      else items.push(<Icon key={i} name="starSolid" className="st st-off" style={{width:size,height:size}}/>);
     }
-    return <span className={"stars "+className}>{items}</span>;
+    return <span className={"stars "+className} role="img" aria-label={value.toFixed(1) + " / 5"}>{items}</span>;
   }
   window.Stars = Stars;
 
-  // ---- Stars (interactive rating) ------------------------------------
-  function RateStars({ value, onRate, size=30 }) {
-    const [hover, setHover] = React.useState(0);
-    const shown = hover || value || 0;
-    return (
-      <span className="stars rate-stars" onMouseLeave={()=>setHover(0)}>
-        {[1,2,3,4,5].map(i=>(
-          <button key={i} onMouseEnter={()=>setHover(i)} onClick={()=>onRate(i)} aria-label={i+" stars"}>
-            <Icon name="starSolid" className={"st"+(i<=shown?"":" empty")} style={{width:size,height:size}}/>
-          </button>
-        ))}
-      </span>
-    );
-  }
-  window.RateStars = RateStars;
+  // ---- highlight a search match ----------------------------------------
+  window.highlight = function (text, q) {
+    const s = (q || "").trim();
+    if (!s || !text) return text;
+    const i = text.toLowerCase().indexOf(s.toLowerCase());
+    if (i < 0) return text;
+    return <>{text.slice(0, i)}<mark>{text.slice(i, i + s.length)}</mark>{text.slice(i + s.length)}</>;
+  };
 
   // ---- number formatting ---------------------------------------------
   window.fmt = function(n){
